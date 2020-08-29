@@ -1,0 +1,2 @@
+psutil-5.7.2
+https://files.pythonhosted.org/packages/79/0e/306ba8239d6e4162372b0a7d6a2e5d8bc2ee80177950dfc6b991cef706ee/windows_curses-2.1.0-cp38-cp38-win_amd64.whl
