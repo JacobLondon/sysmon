@@ -114,7 +114,7 @@ while not s.done:
         else:
             level = GOOD
 
-        tmp = "{:.2f}%".format(i, cpu)
+        tmp = "{:.2f}%".format(cpu)
         s.putstr("CORE_{}: ".format(i), 1, line, NONE)
         s.putstr(f"{tmp}\n", 9, line, level)
         if do_log: builder = f"{builder} CORE_{i}: {tmp}"
