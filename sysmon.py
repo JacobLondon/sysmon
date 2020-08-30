@@ -77,6 +77,7 @@ def control(s: Screen):
         ch = s.stdscr.getch()
         if ch == 27: # ESC
             s.done = True
+            evt.set()
             return
 
 sent: int = 0
@@ -89,6 +90,8 @@ builder: str
 
 s = Screen()
 threading.Thread(target=control, args=(s,)).start()
+evt = threading.Event() # pause the while loop until 'control' finishes or timeout is reached
+
 while not s.done:
     if do_log: builder = ""
     tmp: str
@@ -155,4 +158,4 @@ while not s.done:
     s.putstr("ESC to cancel...", 1, line, INFO)
 
     s.update()
-    time.sleep(5)
+    evt.wait(timeout=5)

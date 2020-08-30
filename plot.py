@@ -22,14 +22,14 @@ COL_RECV = 16
 def units_g(n: str) -> float:
     # return kilobytes/units given a string that ends in
     # B KB or MB and the front is a number
-    if n[-2] == "M":
-        return float(n[:-2]) / 1000.0
-    elif n[-2] == "K":
+    if n.endswith("MB"):
+        return float(n[:-2]) * 1000.0
+    elif n.endswith("KB"):
         return float(n[:-2])
-    elif n[-1] == "%":
+    elif n.endswith("%"):
         return float(n[:-1])
     else: # n[-1] == "B"
-        return float(n[:-1]) * 1000.0
+        return float(n[:-1]) / 1000.0
 
 def time_to_dt(d: str, t: str) -> datetime:
     fmt = "%Y-%m-%d %H:%M:%S"
@@ -46,6 +46,15 @@ if plot_network:
         x.append(time_to_dt(split[COL_DATE], split[COL_TIME]))
         y.append(units_g(split[COL_SEND]))
         r.append(units_g(split[COL_RECV]))
+
+    # 0th items are incorrect
+    del x[0]
+    del y[0]
+    del r[0]
+
+    print("Cumulative Sent: {:.2f}KB".format(sum(y)))
+    print("Cumulative Recv: {:.2f}KB".format(sum(r)))
+
     dates = matplotlib.dates.date2num(x)
     sends, = plt.plot_date(dates, y, linestyle="solid", color="blue")
     recvs, = plt.plot_date(dates, r, linestyle="solid", color="red")
