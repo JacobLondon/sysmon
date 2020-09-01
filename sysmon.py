@@ -96,66 +96,85 @@ while not s.done:
     if do_log: builder = ""
     tmp: str
     line = 1
-    call = logger.info
+    if do_log: call = logger.info
 
     s.putstr("===== Sysmon ====", 1, line, INFO)
     line += 1
 
-    cpu_percent_it = psutil.cpu_percent(percpu=True)
-    it = range(psutil.cpu_count())
+    if hasattr(psutil, "cpu_percent"):
+        cpu_percent_it = psutil.cpu_percent(percpu=True)
+        it = range(psutil.cpu_count())
 
-    for i, cpu in zip(it, cpu_percent_it):
-        if cpu > 80:
+        for i, cpu in zip(it, cpu_percent_it):
+            if cpu > 80:
+                level = CRITICAL
+                if do_log: call = logger.critical
+            elif cpu > 60:
+                level = WARNING
+                if do_log: call = logger.warning
+            else:
+                level = GOOD
+
+            tmp = "{:.2f}%".format(cpu)
+            s.putstr("CORE_{}: ".format(i), 1, line, NONE)
+            s.putstr(f"{tmp}\n", 9, line, level)
+            if do_log: builder = f"{builder} CORE_{i}: {tmp}"
+            line += 1
+        
+        avg = sum(cpu_percent_it) / len(cpu_percent_it)
+        if avg > 80:
             level = CRITICAL
             call = logger.critical
-        elif cpu > 60:
+        elif avg > 60:
             level = WARNING
             call = logger.warning
         else:
             level = GOOD
 
-        tmp = "{:.2f}%".format(cpu)
-        s.putstr("CORE_{}: ".format(i), 1, line, NONE)
+        tmp = "{:.2f}%".format(avg)
+        s.putstr("TOTAL: ", 1, line, NONE)
         s.putstr(f"{tmp}\n", 9, line, level)
-        if do_log: builder = f"{builder} CORE_{i}: {tmp}"
+        if do_log: builder = f"{builder} TOTAL: {tmp}"
+        line += 2
+
+    if hasattr(psutil, "net_io_counters"):
+        network = psutil.net_io_counters()
+        sent_last = sent
+        received_last = received
+        sent = network[0]
+        received = network[1]
+
+        send_size, send_unit = bytes_h(sent - sent_last)
+        recv_size, recv_unit = bytes_h(received - received_last)
+
+        tmp = "SEND: {:.2f}{}".format(send_size, send_unit)
+        s.putstr(f"{tmp}\n", 1, line, NONE)
+        if do_log: builder = f"{builder} {tmp}"
         line += 1
-    
-    avg = sum(cpu_percent_it) / len(cpu_percent_it)
-    if avg > 80:
-        level = CRITICAL
-        call = logger.critical
-    elif avg > 60:
-        level = WARNING
-        call = logger.warning
-    else:
-        level = GOOD
 
-    tmp = "{:.2f}%".format(avg)
-    s.putstr("TOTAL: ", 1, line, NONE)
-    s.putstr(f"{tmp}\n", 9, line, level)
-    if do_log: builder = f"{builder} TOTAL: {tmp}"
-    line += 2
+        tmp = "RECV: {:.2f}{}".format(recv_size, recv_unit)
+        s.putstr(f"{tmp}\n", 1, line, NONE)
+        if do_log: builder = f"{builder} {tmp}"
+        line += 2
 
-    network = psutil.net_io_counters()
-    sent_last = sent
-    received_last = received
-    sent = network[0]
-    received = network[1]
+    if hasattr(psutil, "sensors_temperatures"):
+        temps = psutil.sensors_temperatures()
+        for name in temps.keys():
+            for entry in temps[name]:
+                size = len(entry.label or name)
+                if entry.current > 0.8 * entry.high:
+                    level = WARNING
+                elif entry.current > entry.high:
+                    level = CRITICAL
+                else:
+                    level = GOOD
+                s.putstr(f"{entry.label or name}: ", 1, line)
+                s.putstr(f"{entry.current}C (high={entry.high}, critical={entry.critical})\n", size + 1, line, level)
+                if do_log: builder = f"{builder} {entry.label or name} {entry.current}"
+                line += 1
+        line += 1
 
-    send_size, send_unit = bytes_h(sent - sent_last)
-    recv_size, recv_unit = bytes_h(received - received_last)
-
-    tmp = "SEND: {:.2f}{}".format(send_size, send_unit)
-    s.putstr(f"{tmp}\n", 1, line, NONE)
-    if do_log: builder = f"{builder} {tmp}"
-    line += 1
-
-    tmp = "RECV: {:.2f}{}".format(recv_size, recv_unit)
-    s.putstr(f"{tmp}\n", 1, line, NONE)
-    if do_log: builder = f"{builder} {tmp}"
-    call(builder)
-    line += 2
     s.putstr("ESC to cancel...", 1, line, INFO)
-
+    if do_log: call(builder)
     s.update()
     evt.wait(timeout=5)
